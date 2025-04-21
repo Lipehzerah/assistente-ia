@@ -1,22 +1,323 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KaiAI Revolution - Chat Room</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bate-Papo Inteligente com IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .message-out {
+            animation: fadeIn 0.3s ease-out 0.15s;
+        }
+
+        .typing-indicator::after {
+            content: "...";
+            animation: typingDots 1.5s infinite;
+        }
+
+        @keyframes typingDots {
+            0%, 20% { content: "."; }
+            40% { content: ".."; }
+            60%, 100% { content: "..."; }
+        }
+
+        .chat-container {
+            height: calc(100vh - 120px);
+        }
+
+        @media (max-width: 640px) {
+            .chat-container {
+                height: calc(100vh - 100px);
+            }
+        }
+
+        .memory-chip {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
 </head>
-<body>
-  <div id="chat-container">
-    <h1>Welcome to KaiAI Revolution</h1>
-    <div id="messages"></div>
-    <input type="text" id="username" placeholder="Your name (KaiAI = ADM)" />
-    <input type="text" id="message" placeholder="Type a message..." />
-    <button onclick="sendMessage()">Send</button>
-  </div>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
-  <script src="script.js"></script>
-</body>
-</html>
+<body class="bg-gray-100 font-sans">
+    <div class="max-w-4xl mx-auto p-4">
+        <header class="bg-indigo-600 text-white rounded-t-xl p-4 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="relative">
+                        <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Perfil" class="w-10 h-10 rounded-full border-2 border-white">
+                        <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg">Assistente IA</h1>
+                        <p class="text-xs opacity-80">Online • Aprendendo com você</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="memory-chip text-xs px-2 py-1 rounded-full flex items-center">
+                        <i class="fas fa-brain mr-1"></i>
+                        <span id="memory-count">0</span> memórias
+                    </div>
+                    <button class="text-white hover:text-indigo-200 transition" id="info-button">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="chat-container bg-white overflow-y-auto p-4 shadow-inner" id="chat-area">
+            <div class="message-in mb-4">
+                <div class="flex items-start space-x-2">
+                    <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="IA" class="w-8 h-8 rounded-full mt-1">
+                    <div>
+                        <div class="bg-gray-200 rounded-lg p-3 max-w-xs md:max-w-md">
+                            <p>Olá! Eu sou seu assistente de IA inteligente. Vou aprender com você durante nossa conversa.</p>
+                            <p class="mt-2">Posso te perguntar coisas para entender melhor suas necessidades. Como posso te ajudar hoje?</p>
+                        </div>
+                        <span class="text-xs text-gray-500 mt-1 block">Agora</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="typing-indicator" class="hidden mb-4">
+                <div class="flex items-start space-x-2">
+                    <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="IA" class="w-8 h-8 rounded-full mt-1">
+                    <div>
+                        <div class="bg-gray-200 rounded-lg p-3 w-16">
+                            <div class="typing-indicator"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-b-xl p-4 shadow-lg">
+            <div class="flex items-center space-x-2">
+                <div class="flex-1 relative">
+                    <input type="text" id="message-input" placeholder="Digite sua mensagem..."
+                           class="w-full border border-gray-300 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <button id="send-button" class="bg-indigo-600 text-white rounded-full p-2 hover:bg-indigo-700 transition">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-indigo-600">Sobre este assistente</h3>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <p>Este assistente de IA foi projetado para:</p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>Aprender com suas respostas</li>
+                    <li>Fazer perguntas relevantes</li>
+                    <li>Personalizar as respostas conforme sua interação</li>
+                    <li>Lembrar informações importantes da conversa</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-lg mt-3">
+                    <p class="text-sm text-blue-800"><i class="fas fa-lightbulb mr-2"></i> Quanto mais você conversar, mais personalizadas serão as respostas!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatArea = document.getElementById('chat-area');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const typingIndicator = document.getElementById('typing-indicator');
+            const infoButton = document.getElementById('info-button');
+            const infoModal = document.getElementById('info-modal');
+            const closeModal = document.getElementById('close-modal');
+            const memoryCount = document.getElementById('memory-count');
+
+            // Memória da conversa e aprendizado
+            let userMemory = {
+                name: null,
+                preferences: {},
+                importantInfo: [],
+                lastTopics: []
+            };
+
+            // Histórico de conversa com instruções para a IA
+            let conversationHistory = [
+                {role: "system", content: `Você é um assistente de IA prestativo e curioso que fala português brasileiro.
+                Sua personalidade é amigável, profissional e um pouco curiosa. Você deve:
+                1. Fazer perguntas relevantes para entender melhor o usuário
+                2. Aprender com as respostas e guardar informações importantes
+                3. Adaptar suas respostas com base no que aprendeu
+                4. Manter um tom natural e conversacional
+                5. Ser conciso mas completo nas respostas
+
+                Use estas informações sobre o usuário quando relevante:
+                Nome: ${userMemory.name || 'não informado'}
+                Preferências: ${Object.keys(userMemory.preferences).length > 0 ? JSON.stringify(userMemory.preferences) : 'não informadas'}
+                Informações importantes: ${userMemory.importantInfo.length > 0 ? userMemory.importantInfo.join(', ') : 'nenhuma ainda'}
+                Últimos tópicos: ${userMemory.lastTopics.length > 0 ? userMemory.lastTopics.join(', ') : 'nenhum ainda'}`},
+                {role: "assistant", content: "Olá! Eu sou seu assistente de IA inteligente. Vou aprender com você durante nossa conversa.\n\nPosso te perguntar coisas para entender melhor suas necessidades. Como posso te ajudar hoje?"}
+            ];
+
+            // Atualiza o contador de memórias
+            function updateMemoryCount() {
+                const totalMemories =
+                    (userMemory.name ? 1 : 0) +
+                    Object.keys(userMemory.preferences).length +
+                    userMemory.importantInfo.length;
+                memoryCount.textContent = totalMemories;
+            }
+
+            // Extrai informações importantes da resposta do usuário
+            function extractUserInfo(message, aiResponse) {
+                // Verifica se o usuário forneceu seu nome
+                if (!userMemory.name && (message.toLowerCase().includes('meu nome é') ||
+                                         message.toLowerCase().includes('eu sou') ||
+                                         message.toLowerCase().includes('me chamo'))) {
+                    const nameMatch = message.match(/(meu nome é|eu sou|me chamo)\s+([^\s,.!?]+)/i);
+                    if (nameMatch && nameMatch[2]) {
+                        userMemory.name = nameMatch[2];
+                        conversationHistory[0].content = conversationHistory[0].content.replace(
+                            'Nome: não informado',
+                            `Nome: ${userMemory.name}`
+                        );
+                        updateMemoryCount();
+                    }
+                }
+
+                // Verifica preferências (ex: "gosto de", "prefiro", "não gosto")
+                const preferencePhrases = ['gosto de', 'prefiro', 'não gosto', 'adoro', 'odeio', 'minha cor favorita'];
+                preferencePhrases.forEach(phrase => {
+                    if (message.toLowerCase().includes(phrase)) {
+                        const key = phrase;
+                        const value = message.substring(message.toLowerCase().indexOf(phrase) + phrase.length).trim();
+                        if (value) {
+                            userMemory.preferences[key] = value;
+                            conversationHistory[0].content = conversationHistory[0].content.replace(
+                                'Preferências: não informadas',
+                                `Preferências: ${JSON.stringify(userMemory.preferences)}`
+                            );
+                            updateMemoryCount();
+                        }
+                    }
+                });
+
+                // Adiciona o tópico atual à lista de últimos tópicos
+                if (aiResponse) {
+                    const topicMatch = aiResponse.match(/^(.*?)[,.!?]/);
+                    if (topicMatch && topicMatch[1]) {
+                        userMemory.lastTopics.unshift(topicMatch[1]);
+                        if (userMemory.lastTopics.length > 3) {
+                            userMemory.lastTopics.pop();
+                        }
+                        conversationHistory[0].content = conversationHistory[0].content.replace(
+                            /Últimos tópicos: (.*)/,
+                            `Últimos tópicos: ${userMemory.lastTopics.join(', ')}`
+                        );
+                    }
+                }
+
+                // Marca informações como importantes se o usuário confirmar
+                if (message.toLowerCase().includes('é importante') ||
+                    message.toLowerCase().includes('guarde isso') ||
+                    message.toLowerCase().includes('lembre-se')) {
+                    const importantInfo = message.replace(/(é importante|guarde isso|lembre-se)/i, '').trim();
+                    if (importantInfo && !userMemory.importantInfo.includes(importantInfo)) {
+                        userMemory.importantInfo.push(importantInfo);
+                        conversationHistory[0].content = conversationHistory[0].content.replace(
+                            'Informações importantes: nenhuma ainda',
+                            `Informações importantes: ${userMemory.importantInfo.join(', ')}`
+                        );
+                        updateMemoryCount();
+                    }
+                }
+            }
+
+            // Função para adicionar mensagem ao chat
+            function addMessage(text, isOutgoing) {
+                const now = new Date();
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const timeString = `<span class="math-inline">\{hours\}\:</span>{minutes}`;
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = isOutgoing ? 'message-out mb-4' : 'message-in mb-4';
+
+                if (isOutgoing) {
+                    messageDiv.innerHTML = `
+                        <div class="flex justify-end">
+                            <div class="flex flex-col items-end">
+                                <div class="bg-indigo-600 text-white rounded-lg p-3 max-w-xs md:max-w-md">
+                                    <p><span class="math-inline">\{text\}</p\>
+</div\>
+<span class\="text\-xs text\-gray\-500 mt\-1"\></span>{timeString}</span>
+                            </div>
+                        </div>
+                    `;
+                    // Adicionar ao histórico como mensagem do usuário
+                    conversationHistory.push({role: "user", content: text});
+                } else {
+                    messageDiv.innerHTML = `
+                        <div class="flex items-start space-x-2">
+                            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="IA" class="w-8 h-8 rounded-full mt-1">
+                            <div>
+                                <div class="bg-gray-200 rounded-lg p-3 max-w-xs md:max-w-md">
+                                    <p><span class="math-inline">\{text\}</p\>
+</div\>
+<span class\="text\-xs text\-gray\-500 mt\-1 block"\></span>{timeString}</span>
+                            </div>
+                        </div>
+                    `;
+                    // Adicionar ao histórico como mensagem da IA
+                    conversationHistory.push({role: "assistant", content: text});
+                }
+
+                chatArea.appendChild(messageDiv);
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+
+            // Função para obter resposta da IA
+            async function getAIResponse(userMessage) {
+                try {
+                    // Mostrar indicador de digitação
+                    typingIndicator.classList.remove('hidden');
+                    chatArea.scrollTop = chatArea.scrollHeight;
+
+                    // Atualiza as instruções do sistema com as memórias mais recentes
+                    conversationHistory[0].content = `Você é um assistente de IA prestativo e curioso que fala português brasileiro.
+                    Sua personalidade é amigável, profissional e um pouco curiosa. Você deve:
+                    1. Fazer perguntas relevantes para entender melhor o usuário
+                    2. Aprender com as respostas e guardar informações importantes
+                    3. Adaptar suas respostas com base no que aprendeu
+                    4. Manter um tom natural e conversacional
+                    5. Ser conciso mas completo nas respostas
+
+                    Use estas informações sobre o usuário quando relevante:
+                    Nome: ${userMemory.name || 'não informado'}
+                    Preferências: ${Object.keys(userMemory.preferences).length > 0 ? JSON.stringify(userMemory.preferences) : 'não informadas'}
+                    Informações importantes: ${userMemory.importantInfo.length > 0 ? userMemory.importantInfo.join(', ') : 'nenhuma ainda'}
+                    Últimos tópicos: ${userMemory.lastTopics.length > 0 ? userMemory.lastTopics.join(', ') : 'nenhum ainda'}`;
+                    // Chamada para a API da OpenAI (substitua YOUR_API_KEY pela sua chave)
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer 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'
+                        },
+                        body: JSON.stringify({
+                            model: "gpt-3.5-turbo",
+                            messages: conversationHistory,
+                            temperature: 0.7,
+                            max_
