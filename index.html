@@ -54,7 +54,7 @@
                     <div>
                         <h1 class="font-bold text-lg">Assistente IA</h1>
                         <p class="text-xs opacity-80">
-                            Status: <span id="connection-status" class="connection-good">Conectando...</span>
+                            Conexão: <span id="connection-status" class="connection-good">Estável</span>
                         </p>
                     </div>
                 </div>
@@ -77,7 +77,7 @@
                     <div>
                         <div class="bg-gray-200 rounded-lg p-3 max-w-xs md:max-w-md">
                             <p>Olá! Eu sou seu assistente de IA inteligente.</p>
-                            <p class="mt-2">Estou verificando a conexão com os servidores... Um momento!</p>
+                            <p class="mt-2">Estou verificando a conexão... Um momento!</p>
                         </div>
                         <span class="text-xs text-gray-500 mt-1 block">Sistema iniciando</span>
                     </div>
@@ -110,54 +110,21 @@
     </div>
 
     <script>
+        // Sistema Automático - Não precisa mexer aqui
         document.addEventListener('DOMContentLoaded', function() {
-            // Elementos da UI
+            // Elementos da tela
             const chatArea = document.getElementById('chat-area');
             const messageInput = document.getElementById('message-input');
             const sendButton = document.getElementById('send-button');
             const typingIndicator = document.getElementById('typing-indicator');
             const connectionStatus = document.getElementById('connection-status');
-            const memoryCount = document.getElementById('memory-count');
             
-            // Configurações
+            // Configuração automática
             const API_KEY = "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";
             let connectionStability = 80;
+            let conversationHistory = [];
             
-            // Sistema de armazenamento seguro
-            const storageManager = {
-                get: (key) => {
-                    try {
-                        return localStorage.getItem(key);
-                    } catch (e) {
-                        return null;
-                    }
-                },
-                set: (key, value) => {
-                    try {
-                        localStorage.setItem(key, value);
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
-                }
-            };
-            
-            // Histórico de conversa
-            let conversationHistory = [
-                {
-                    role: "system",
-                    content: "Você é um assistente de IA prestativo que fala português brasileiro. Seja amigável, profissional e conciso."
-                }
-            ];
-            
-            // Memória do usuário
-            let userMemory = {
-                name: null,
-                preferences: {},
-                importantInfo: []
-            };
-            
-            // Atualiza status da conexão
+            // Atualiza o status da conexão
             function updateConnectionStatus() {
                 let status, className;
                 
@@ -171,7 +138,7 @@
                     status = "Fraca";
                     className = "connection-weak";
                 } else {
-                    status = "Instável";
+                    status = "Crítica";
                     className = "connection-bad";
                 }
                 
@@ -179,7 +146,7 @@
                 connectionStatus.className = className;
             }
             
-            // Adiciona mensagem ao chat
+            // Adiciona mensagem no chat
             function addMessage(text, isOutgoing) {
                 const now = new Date();
                 const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -218,10 +185,11 @@
                 chatArea.scrollTop = chatArea.scrollHeight;
             }
             
-            // Métodos de conexão com fallback
+            // Sistema inteligente de conexão
             async function tryAPIConnection(messages) {
-                const endpoints = [
+                const methods = [
                     {
+                        name: "Conexão Direta",
                         url: 'https://openrouter.ai/api/v1/chat/completions',
                         headers: {
                             'Authorization': `Bearer ${API_KEY}`,
@@ -231,7 +199,8 @@
                         }
                     },
                     {
-                        url: 'https://cors-anywhere.herokuapp.com/https://openrouter.ai/api/v1/chat/completions',
+                        name: "Conexão Alternativa",
+                        url: 'https://corsproxy.io/?https://api.openrouter.ai/v1/chat/completions',
                         headers: {
                             'Authorization': `Bearer ${API_KEY}`,
                             'Content-Type': 'application/json'
@@ -239,11 +208,11 @@
                     }
                 ];
                 
-                for (let i = 0; i < endpoints.length; i++) {
+                for (const method of methods) {
                     try {
-                        const response = await fetch(endpoints[i].url, {
+                        const response = await fetch(method.url, {
                             method: 'POST',
-                            headers: endpoints[i].headers,
+                            headers: method.headers,
                             body: JSON.stringify({
                                 model: "openai/gpt-3.5-turbo",
                                 messages: messages,
@@ -255,27 +224,27 @@
                         
                         const data = await response.json();
                         if (data.choices?.[0]?.message?.content) {
-                            connectionStability += 10;
+                            connectionStability = Math.min(100, connectionStability + 20);
                             return data.choices[0].message.content;
                         }
                     } catch (error) {
-                        console.log(`Tentativa ${i+1} falhou, tentando próximo método...`);
+                        console.log(`Tentativa ${method.name} falhou, tentando próximo método...`);
                     }
                 }
                 
-                connectionStability -= 20;
-                throw new Error("Todos os métodos de conexão falharam");
+                connectionStability = Math.max(0, connectionStability - 30);
+                throw new Error("Não consegui me conectar");
             }
             
-            // Resposta de fallback
+            // Respostas quando está offline
             function getFallbackResponse() {
-                const fallbacks = [
-                    "Estou ajustando minha conexão, pode repetir?",
-                    "Estou tendo instabilidades momentâneas, tente novamente!",
-                    "Sistema em otimização, responderei em instantes...",
-                    "Estou processando localmente, aguarde um momento."
+                const responses = [
+                    "Estou tendo problemas para me conectar, tente novamente...",
+                    "Minha conexão está instável no momento, aguarde um pouco!",
+                    "Estou processando localmente, um momento por favor.",
+                    "Sistema em ajuste, já volto a responder normalmente."
                 ];
-                return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                return responses[Math.floor(Math.random() * responses.length)];
             }
             
             // Obter resposta da IA
@@ -313,7 +282,7 @@
                 addMessage(aiResponse, false);
             }
             
-            // Event listeners
+            // Configuração dos botões
             sendButton.addEventListener('click', sendMessage);
             
             messageInput.addEventListener('keydown', function(e) {
@@ -328,15 +297,15 @@
                 this.style.height = (this.scrollHeight) + 'px';
             });
             
-            // Inicialização
+            // Iniciar sistema
             updateConnectionStatus();
             
-            // Mensagem inicial após 1 segundo
+            // Mensagem inicial
             setTimeout(() => {
-                addMessage("Agora estou pronto para conversar! Como posso te ajudar hoje?", false);
+                addMessage("Pronto para conversar! Como posso te ajudar?", false);
                 connectionStability = 90;
                 updateConnectionStatus();
-            }, 1000);
+            }, 1500);
         });
     </script>
 </body>
