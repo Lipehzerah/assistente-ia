@@ -320,4 +320,22 @@
                             model: "gpt-3.5-turbo",
                             messages: conversationHistory,
                             temperature: 0.7,
-                            max_
+                            max_tokens: 256
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    // Esconder indicador de digitação
+                    typingIndicator.classList.add('hidden');
+
+                    if (data.choices && data.choices[0].message) {
+                        const aiResponse = data.choices[0].message.content;
+
+                        // Extrai informações do usuário da mensagem
+                        extractUserInfo(userMessage, aiResponse);
+
+                        return aiResponse;
+                    } else {
+                        return "Desculpe, não consegui processar sua mensagem. Poderia reformular?";
+                    }
