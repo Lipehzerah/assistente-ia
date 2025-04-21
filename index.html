@@ -150,8 +150,9 @@
             const closeModal = document.getElementById('close-modal');
             const memoryCount = document.getElementById('memory-count');
             
-            // Sua chave API da OpenRouter
-            const OPENROUTER_API_KEY = "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";
+            // Configurações da API (substitua por sua chave real se necessário)
+            const API_KEY = "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";
+            const API_URL = "https://openrouter.ai/api/v1/chat/completions";
             
             // Auto-resize textarea
             messageInput.addEventListener('input', function() {
@@ -159,7 +160,7 @@
                 this.style.height = (this.scrollHeight) + 'px';
             });
             
-            // Memória da conversa e aprendizado
+            // Memória da conversa
             let userMemory = {
                 name: null,
                 preferences: {},
@@ -167,104 +168,15 @@
                 lastTopics: []
             };
             
-            // Histórico de conversa com instruções para a IA
             let conversationHistory = [
-                {role: "system", content: `Você é um assistente de IA prestativo e curioso que fala português brasileiro. 
-                Sua personalidade é amigável, profissional e um pouco curiosa. Você deve:
-                1. Fazer perguntas relevantes para entender melhor o usuário
-                2. Aprender com as respostas e guardar informações importantes
-                3. Adaptar suas respostas com base no que aprendeu
-                4. Manter um tom natural e conversacional
-                5. Ser conciso mas completo nas respostas
-                
-                Use estas informações sobre o usuário quando relevante:
-                Nome: ${userMemory.name || 'não informado'}
-                Preferências: ${Object.keys(userMemory.preferences).length > 0 ? JSON.stringify(userMemory.preferences) : 'não informadas'}
-                Informações importantes: ${userMemory.importantInfo.length > 0 ? userMemory.importantInfo.join(', ') : 'nenhuma ainda'}
-                Últimos tópicos: ${userMemory.lastTopics.length > 0 ? userMemory.lastTopics.join(', ') : 'nenhum ainda'}`},
-                {role: "assistant", content: "Olá! Eu sou seu assistente de IA inteligente. Vou aprender com você durante nossa conversa.\n\nPosso te perguntar coisas para entender melhor suas necessidades. Como posso te ajudar hoje?"}
+                {role: "system", content: `Você é um assistente de IA prestativo que fala português brasileiro. Seja amigável e profissional.`},
+                {role: "assistant", content: "Olá! Eu sou seu assistente de IA. Como posso te ajudar hoje?"}
             ];
-            
-            // Atualiza o contador de memórias
-            function updateMemoryCount() {
-                const totalMemories = 
-                    (userMemory.name ? 1 : 0) + 
-                    Object.keys(userMemory.preferences).length + 
-                    userMemory.importantInfo.length;
-                memoryCount.textContent = totalMemories;
-            }
-            
-            // Extrai informações importantes da resposta do usuário
-            function extractUserInfo(message, aiResponse) {
-                // Verifica se o usuário forneceu seu nome
-                if (!userMemory.name && (message.toLowerCase().includes('meu nome é') || 
-                                         message.toLowerCase().includes('eu sou') ||
-                                         message.toLowerCase().includes('me chamo'))) {
-                    const nameMatch = message.match(/(meu nome é|eu sou|me chamo)\s+([^\s,.!?]+)/i);
-                    if (nameMatch && nameMatch[2]) {
-                        userMemory.name = nameMatch[2];
-                        conversationHistory[0].content = conversationHistory[0].content.replace(
-                            'Nome: não informado', 
-                            `Nome: ${userMemory.name}`
-                        );
-                        updateMemoryCount();
-                    }
-                }
-                
-                // Verifica preferências (ex: "gosto de", "prefiro", "não gosto")
-                const preferencePhrases = ['gosto de', 'prefiro', 'não gosto', 'adoro', 'odeio', 'minha cor favorita'];
-                preferencePhrases.forEach(phrase => {
-                    if (message.toLowerCase().includes(phrase)) {
-                        const key = phrase;
-                        const value = message.substring(message.toLowerCase().indexOf(phrase) + phrase.length).trim();
-                        if (value) {
-                            userMemory.preferences[key] = value;
-                            conversationHistory[0].content = conversationHistory[0].content.replace(
-                                'Preferências: não informadas', 
-                                `Preferências: ${JSON.stringify(userMemory.preferences)}`
-                            );
-                            updateMemoryCount();
-                        }
-                    }
-                });
-                
-                // Adiciona o tópico atual à lista de últimos tópicos
-                if (aiResponse) {
-                    const topicMatch = aiResponse.match(/^(.*?)[,.!?]/);
-                    if (topicMatch && topicMatch[1]) {
-                        userMemory.lastTopics.unshift(topicMatch[1]);
-                        if (userMemory.lastTopics.length > 3) {
-                            userMemory.lastTopics.pop();
-                        }
-                        conversationHistory[0].content = conversationHistory[0].content.replace(
-                            /Últimos tópicos: (.*)/, 
-                            `Últimos tópicos: ${userMemory.lastTopics.join(', ')}`
-                        );
-                    }
-                }
-                
-                // Marca informações como importantes se o usuário confirmar
-                if (message.toLowerCase().includes('é importante') || 
-                    message.toLowerCase().includes('guarde isso') ||
-                    message.toLowerCase().includes('lembre-se')) {
-                    const importantInfo = message.replace(/(é importante|guarde isso|lembre-se)/i, '').trim();
-                    if (importantInfo && !userMemory.importantInfo.includes(importantInfo)) {
-                        userMemory.importantInfo.push(importantInfo);
-                        conversationHistory[0].content = conversationHistory[0].content.replace(
-                            'Informações importantes: nenhuma ainda', 
-                            `Informações importantes: ${userMemory.importantInfo.join(', ')}`
-                        );
-                        updateMemoryCount();
-                    }
-                }
-            }
             
             // Função para adicionar mensagem ao chat
             function addMessage(text, isOutgoing) {
                 const now = new Date();
-                const hours = now.getHours().toString().padStart(2, '0');
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                const timeString = `${hours}:${minutes}`;
+                const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 
                 const messageDiv = document.createElement('div');
                 messageDiv.className = isOutgoing ? 'message-out mb-4' : 'message-in mb-4';
@@ -280,8 +192,6 @@
                             </div>
                         </div>
                     `;
-                    
-                    // Adicionar ao histórico como mensagem do usuário
                     conversationHistory.push({role: "user", content: text});
                 } else {
                     messageDiv.innerHTML = `
@@ -295,8 +205,6 @@
                             </div>
                         </div>
                     `;
-                    
-                    // Adicionar ao histórico como mensagem da IA
                     conversationHistory.push({role: "assistant", content: text});
                 }
                 
@@ -304,90 +212,52 @@
                 chatArea.scrollTop = chatArea.scrollHeight;
             }
             
-            // Função para obter resposta da IA
+            // Função para obter resposta da IA (VERSÃO CORRIGIDA)
             async function getAIResponse(userMessage) {
                 try {
-                    // Mostrar indicador de digitação
                     typingIndicator.classList.remove('hidden');
-                    chatArea.scrollTop = chatArea.scrollHeight;
                     
-                    // Atualiza as instruções do sistema com as memórias mais recentes
-                    conversationHistory[0].content = `Você é um assistente de IA prestativo e curioso que fala português brasileiro. 
-                    Sua personalidade é amigável, profissional e um pouco curiosa. Você deve:
-                    1. Fazer perguntas relevantes para entender melhor o usuário
-                    2. Aprender com as respostas e guardar informações importantes
-                    3. Adaptar suas respostas com base no que aprendeu
-                    4. Manter um tom natural e conversacional
-                    5. Ser conciso mas completo nas respostas
-                    
-                    Use estas informações sobre o usuário quando relevante:
-                    Nome: ${userMemory.name || 'não informado'}
-                    Preferências: ${Object.keys(userMemory.preferences).length > 0 ? JSON.stringify(userMemory.preferences) : 'não informadas'}
-                    Informações importantes: ${userMemory.importantInfo.length > 0 ? userMemory.importantInfo.join(', ') : 'nenhuma ainda'}
-                    Últimos tópicos: ${userMemory.lastTopics.length > 0 ? userMemory.lastTopics.join(', ') : 'nenhum ainda'}`;
-                    
-                    // Chamada para a API da OpenRouter
-                    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    const response = await fetch(API_URL, {
                         method: 'POST',
                         headers: {
+                            'Authorization': `Bearer ${API_KEY}`,
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                            'HTTP-Referer': window.location.href || 'https://localhost', // OpenRouter requer isso
-                            'X-Title': 'Bate-Papo Inteligente com IA' // Nome do seu aplicativo
+                            'HTTP-Referer': window.location.href,
+                            'X-Title': 'Assistente IA'
                         },
                         body: JSON.stringify({
                             model: "openai/gpt-3.5-turbo",
                             messages: conversationHistory,
-                            temperature: 0.7,
-                            max_tokens: 256
+                            temperature: 0.7
                         })
                     });
-                    
-                    // Verifica se a resposta foi bem sucedida
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        console.error("Erro na API:", errorData);
-                        throw new Error(errorData.error?.message || "Erro na API");
-                    }
+
+                    if (!response.ok) throw new Error('Erro na API');
                     
                     const data = await response.json();
+                    return data.choices[0].message.content;
                     
-                    // Esconder indicador de digitação
-                    typingIndicator.classList.add('hidden');
-                    
-                    if (data.choices && data.choices[0]?.message?.content) {
-                        const aiResponse = data.choices[0].message.content;
-                        
-                        // Extrai informações do usuário da mensagem
-                        extractUserInfo(userMessage, aiResponse);
-                        
-                        return aiResponse;
-                    } else {
-                        console.error("Resposta inesperada da API:", data);
-                        return "Desculpe, não consegui processar sua mensagem. Poderia reformular?";
-                    }
                 } catch (error) {
-                    console.error("Erro ao chamar a API:", error);
+                    console.error("Erro:", error);
+                    return "Houve um erro ao processar sua mensagem. Tente novamente.";
+                } finally {
                     typingIndicator.classList.add('hidden');
-                    return `Houve um erro: ${error.message}. Por favor, tente novamente.`;
                 }
             }
             
-            // Enviar mensagem ao clicar no botão
+            // Enviar mensagem
             sendButton.addEventListener('click', async function() {
                 const message = messageInput.value.trim();
                 if (message) {
                     addMessage(message, true);
                     messageInput.value = '';
-                    messageInput.style.height = 'auto';
                     
-                    // Obter resposta da IA
                     const aiResponse = await getAIResponse(message);
                     addMessage(aiResponse, false);
                 }
             });
             
-            // Enviar mensagem ao pressionar Enter (mas não Shift+Enter)
+            // Enviar com Enter
             messageInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -395,20 +265,11 @@
                 }
             });
             
-            // Mostrar/ocultar modal de informações
-            infoButton.addEventListener('click', function() {
-                infoModal.classList.remove('hidden');
-            });
-            
-            closeModal.addEventListener('click', function() {
-                infoModal.classList.add('hidden');
-            });
-            
-            // Fechar modal ao clicar fora
-            infoModal.addEventListener('click', function(e) {
-                if (e.target === infoModal) {
-                    infoModal.classList.add('hidden');
-                }
+            // Modal de informações
+            infoButton.addEventListener('click', () => infoModal.classList.remove('hidden'));
+            closeModal.addEventListener('click', () => infoModal.classList.add('hidden'));
+            infoModal.addEventListener('click', (e) => {
+                if (e.target === infoModal) infoModal.classList.add('hidden');
             });
         });
     </script>
